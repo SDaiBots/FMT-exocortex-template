@@ -40,8 +40,16 @@ Fallback: файла нет → пропустить, работать из ко
 `gh issue list` по всем репо (включая вложенным). Фильтр 2 дня. Связь с РП по ключевым словам.
 **Только actionable:** пропускать read-only и upstream без push-доступа.
 
-### 1c. Заметки
-`<governance-repo>/inbox/fleeting-notes.md` (governance-репо = значение env `$IWE_GOVERNANCE_REPO`, по умолчанию `DS-strategy`) → категоризация: → РП / → Backlog / → Контент / → Pack / → Обсудить / → Шум. НЕ удалять.
+### 1c. Inbox Triage (ежедневный — WP-196 Ф11 п4)
+
+> Явный шаг: разобрать новые входы, поступившие в `inbox/` за ночь и в начале дня.
+
+**Источники:**
+- `<governance-repo>/inbox/fleeting-notes.md` — свежие заметки
+- `<governance-repo>/inbox/captures.md` — знаниевые кандидаты (если есть)
+- `<governance-repo>/inbox/extraction-reports/*.md` со `status: pending-review` — отчёты Экстрактора (если есть)
+
+**Категоризация заметок** по PD.FORM.083 (7 категорий): НЭП / Задача / Знание доменное / Знание реализационное / Черновик / Личные данные / Шум. Полная справка → `memory/feedback_note_review_routing.md`. НЕ удалять.
 **Carry-over заметок из вчерашнего DayPlan:** проверить по git log (`note-review`), были ли обработаны. Если да → секция «Разбор заметок» = «все обработаны» (с ссылкой на коммит). Не переносить обработанные заметки как carry-over.
 **Гиперссылки на заметки (БЛОКИРУЮЩЕЕ):** каждая заметка в секции «Разбор заметок» DayPlan — markdown-ссылка на её источник (`inbox/fleeting-notes.md` для свежих, `archive/notes/Notes-Archive.md#L<line>` для обработанных, `inbox/captures.md` для знания). Причина: после Note-Review сама заметка исчезает из fleeting-notes.md, и без ссылки суть заметки теряется через день. Формат строки таблицы: `[«заголовок»](путь#L<line>) (DD мес HH:MM)`.
 **Знаниевые заметки = кандидаты (БЛОКИРУЮЩЕЕ):** заметки категории «Знание доменное» без явного маркера «Экстрактору» в тексте → в DayPlan секция «Разбор заметок» таблицей **Кандидаты Экстрактору** с колонками «Заметка | Тип | Предполагаемый Pack | Действие». Решение «отдать / оставить» принимает пользователь в живом разборе. Note-Review в `captures.md` пишет ТОЛЬКО при явном маркере. Причина: `captures.md` = очередь Экстрактора; любое знание туда = неявное согласие на формализацию, которое Note-Review делать не уполномочен.
@@ -121,6 +129,30 @@ Scout report. Не проревьюен → «Требует внимания».
 
 ### 7. Запись
 **7a.** Записать DayPlan: `<governance-repo>/current/DayPlan YYYY-MM-DD.md` по шаблону ниже. Предыдущий → `archive/day-plans/`.
+**7a2.** Записать журнал сессии (WP-196 Ф11 п1): `<governance-repo>/sessions/YYYY-MM-DD.md` со shapкой:
+
+```markdown
+---
+type: session-log
+date: YYYY-MM-DD
+week: W{N}
+agent: Стратег / Кодировщик
+---
+
+# Session Log: YYYY-MM-DD
+
+## Day Open
+- DayPlan: `current/DayPlan YYYY-MM-DD.md`
+- Carry-over: [список из вчерашнего «Завтра начать с»]
+
+## Сессии дня
+> Заполняется в Day Close: список Quick Close сессий + ключевые рубежи
+
+## Day Close
+> Дописывается в Day Close: ссылка на `archive/day-plans/DayPlan YYYY-MM-DD.md` + 3 варианта плана на завтра
+```
+
+Файл создаётся пустой при Day Open и наполняется в течение дня. Назначение: гарантировать, что итог сессии не растворяется в WeekPlan — каждая сессия имеет след. Если файл уже существует (двойной Day Open) — не перезаписывать, просто пропустить.
 **7b.** Загрузить: `bash .claude/scripts/load-extensions.sh day-open checks`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить верификацию. Exit 1 → пропустить. БЛОКИРУЮЩЕЕ: commit запрещён до прохождения всех checks. Поддерживает `extensions/day-open.checks.md` И `extensions/day-open.checks.<suffix>.md`.
 **7c.** `git commit` + `git push`.
 **7d.** Compact dashboard → вывести в VS Code по шаблону ниже.
