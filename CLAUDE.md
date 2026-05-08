@@ -229,6 +229,17 @@ schema_version: 1
 
 **Архивация:** предлагает агент при Week/Month Close — не выполняет автономно. HOT→WARM: 14 дней без обращения. WARM→COLD: 30 дней. COLD→archive: 90 дней.
 
+### Security Audit Cadence (WP-212, S-36)
+
+> **Три уровня периодичности:**
+> - **Per-ArchGate (каждое архитектурное решение):** §Б чеклист в ArchGate (B7.1 ✅) + STRIDE для нового сервиса → обновить B7.2 scope-таблицу.
+> - **Week Close (2 мин):** проверить `security-posture.md §3` — `open_critical_count > 0`? Если да → добавить WP-212 в следующий WeekPlan.
+> - **Month Close (R24 Аудитор, ~1h):** sub-agent R24 (context isolation, Sonnet) → разделы A-F чеклиста B7.4 → обновить `security-posture.md` → коммит `docs(WP-212): security audit YYYY-MM`.
+
+**Файлы:**
+- Dashboard: `DS-ecosystem-development/C.IT-Platform/C2.IT-Platform/C2.2.Architecture/security-posture.md`
+- Чеклист: `DS-ecosystem-development/.../Identity-and-Access/B7.4-external-audit-checklist.md`
+
 ### WeekPlan / WeekReport split (ОПТ-5, WP-297)
 
 **WeekPlan** = намерения недели (planning, inbox triage, НЭП, приоритеты, контент-план). **Только интенты.** Нет прошлого.
