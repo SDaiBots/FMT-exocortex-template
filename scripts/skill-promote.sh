@@ -101,11 +101,18 @@ done
 
 echo "✅ Промотирован: FMT/.claude/skills/$skill_name/ (layer: L1)"
 
-# ── Шаг 5. Регенерация каталога ──────────────────────────────────────────────
+# ── Шаг 5. Регенерация каталогов (author + FMT) ──────────────────────────────
+# B12a fix (WP-7/PZ-1, 2026-05-29): раньше регенерировался только authoring
+# catalog; FMT/.claude/skills-catalog.yaml оставался stale → новые скиллы
+# невидимы при discovery у пилотов.
 CATALOG_SCRIPT="$FMT_DIR/scripts/generate-skills-catalog.sh"
 if [[ -f "$CATALOG_SCRIPT" ]]; then
-    echo "🔄 Регенерация skills-catalog.yaml..."
+    echo "🔄 Регенерация skills-catalog.yaml (author)..."
     bash "$CATALOG_SCRIPT" 2>&1
+    echo "🔄 Регенерация skills-catalog.yaml (FMT)..."
+    bash "$CATALOG_SCRIPT" \
+        --skills-dir "$FMT_DIR/.claude/skills" \
+        --output "$FMT_DIR/.claude/skills-catalog.yaml" 2>&1
 fi
 
 CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
