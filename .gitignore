@@ -16,3 +16,7 @@ scripts/sync-communication-style.yaml
 
 # Backup copies created by skill-promote.sh — local safety net, not for git
 .backups/
+
+# macOS junk (создаётся на маках, не отслеживать)
+.DS_Store
+**/.DS_Store
