@@ -59,8 +59,8 @@ max_num = 0
 try:
     with open(registry, "r", encoding="utf-8") as f:
         for line in f:
-            # Ищем строки вида | 297 | или | ~~297~~ |
-            m = re.match(r"^\|\s*~*(\d+)~*\s*\|", line)
+            # Ищем строки вида | WP-297 | или | ~~WP-297~~ | (WP- опционален)
+            m = re.match(r"^\|\s*~*(?:WP-)?(\d+)~*\s*\|", line)
             if m:
                 n = int(m.group(1))
                 if n > max_num:
@@ -190,12 +190,16 @@ WPEOF
 
 echo "   ✅ $WP_FILE"
 
+# --- Неделя активации (из имени последнего WeekPlan) ---
+WEEK=$(find "$STRATEGY/current" -maxdepth 1 -name "WeekPlan W*.md" 2>/dev/null | sort -r | head -1 | grep -oE 'W[0-9]+' | head -1)
+[[ -z "$WEEK" ]] && WEEK="W?"
+
 # --- Шаг 2: WP-REGISTRY.md ---
 echo "2/4 WP-REGISTRY.md..."
 
-python3 - "$REGISTRY" "$WP_NUM" "$PRIORITY" "$TITLE" "$REPO" "$BUDGET" "$GOV_REPO" <<'PYEOF'
+python3 - "$REGISTRY" "$WP_NUM" "$TITLE" "$WEEK" <<'PYEOF'
 import sys
-registry_path, wp_num, priority, title, repo, budget, gov_repo = sys.argv[1:8]
+registry_path, wp_num, title, week = sys.argv[1:5]
 
 with open(registry_path, "r", encoding="utf-8") as f:
     lines = f.readlines()
@@ -211,10 +215,8 @@ if insert_at is None:
     print("❌ Не найден заголовок таблицы REGISTRY", file=sys.stderr)
     sys.exit(1)
 
-repo_cell = repo if repo else "{}/inbox/WP-{}-*.md".format(gov_repo, wp_num)
-new_row = "| {} | {} | **{}** | ⏳ | {} | {} |\n".format(
-    wp_num, priority, title, repo_cell, budget
-)
+# Реестр = 4 колонки: | # | Название | Статус | Активация | (имя с префиксом WP-)
+new_row = "| WP-{} | **{}** | ⏳ | {} |\n".format(wp_num, title, week)
 lines.insert(insert_at, new_row)
 
 with open(registry_path, "w", encoding="utf-8") as f:
