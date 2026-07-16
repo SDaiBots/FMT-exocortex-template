@@ -115,11 +115,13 @@ bash $IWE_SCRIPTS/server-calendar.sh --week YYYY-MM-DD
 
 ## Шаг 5: IWE за ночь (светофор)
 
-**Проверка обновлений IWE:**
+**Проверка обновлений IWE — лёгкая** (расширение `day-open.before.updates.md`, один `gh api`-запрос ~0.5с):
 ```bash
-cd "$IWE_TEMPLATE" && bash update.sh --check 2>&1
+LOCAL_VER=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' "$IWE_TEMPLATE/CHANGELOG.md" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+REMOTE=$(timeout 15 gh api repos/TserenTserenov/FMT-exocortex-template/releases/latest --jq '.tag_name + "\t" + .name' 2>/dev/null)
+# сравнить LOCAL_VER с тегом REMOTE → строка «Наличие обновлений: нет / есть (краткие изменения)»
 ```
-Если доступно обновление → «Требует внимания»: «Доступно обновление IWE → `/iwe-update`».
+**НЕ запускать `update.sh --check`** — тяжёлая сетевая посверка файлов, таймаут >55с (снято 16 июл, WP-61). Полное обновление — отдельной командой `/iwe-update`. Если релиз новее → «Требует внимания»: «Доступно обновление IWE → `/iwe-update`».
 
 **Проверка Base-репо (FPF, SPF, ZP):**
 ```bash

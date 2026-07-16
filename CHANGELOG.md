@@ -70,12 +70,17 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-06-30
+
+## [Unreleased] — обновлено 2026-07-16
+
+### Changed
+
+- `d6fa006` chore: untrack .DS_Store (macOS junk) via gitignore
+- `052f59f` chore: update from upstream template 0.35.5 (variant A: §8/§9 kept inline; drop orphans diagnose-iwe, kimi modes.md)
 
 ### Fixed
 
-- `b4d08a2` fix(v0.35.5): orphan-detection TypeError + DS-strategy validator + root detection (#214 #215)
-- `212fa2f` fix(setup): include rules-lazy in dry-run and section message
+- `478be7f` fix(create-wp.sh): исправление нумерации/формата реестра (баг WP-NN numbering, 8 июл)
 
 
 ## [0.35.5] — 2026-06-30
