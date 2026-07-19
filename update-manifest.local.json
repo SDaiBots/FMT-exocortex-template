@@ -1,0 +1,17 @@
+{
+  "description": "Fork-local исключения (issue #247). Файлы, которые мы осознанно держим отличными от вендорских — они не сироты. ВНИМАНИЕ: этот файл НЕ защищает от перезаписи при доставке, он только гасит orphan-detection (шаг 6f update.sh). Защита от перезаписи — params.yaml author_mode: true.",
+  "excluded_paths": [
+    "extensions/day-open.before.updates.md",
+    "extensions/day-open.before.voice.md"
+  ],
+  "fork_local_modifications": {
+    "_comment": "Не читается скриптами — журнал наших осознанных отличий от вендора, WP-65 19.07.2026",
+    "scripts/create-wp.sh": [
+      "шаг 2 archive stub отключён — решение пилота 04.07.2026 (feedback-wp-new-no-archive-stub)",
+      "папочная конвенция inbox/WP-N/ отключена — у нас плоский inbox, по маске inbox/WP-*.md ходят active-wp-sweep / session-prep / memory-active-wp-update"
+    ],
+    "CLAUDE.md": [
+      "§8/§9 в шаблоне держим вендорские (компактные). Авторский контент живёт в IWE/CLAUDE.md и доставляется через template-sync.sh с отрезанием §9"
+    ]
+  }
+}
