@@ -117,19 +117,13 @@ print(result)
 fi
 
 # Inbox convention (WP-434): every WP is a folder inbox/WP-N/ with main file WP-N.md.
-# Slug is dropped from the filename (lives in title: frontmatter); archive stub keeps it.
-# --- FORK-LOCAL (WP-65, 19.07.2026): у нас inbox плоский — 26 файлов вида
-# inbox/WP-N-slug.md, и по маске inbox/WP-*.md ходят active-wp-sweep, session-prep,
-# memory-active-wp-update. Папочная конвенция создала бы второй несовместимый формат.
-# Возврат к вендорскому поведению: раскомментировать блок ниже, удалить плоский.
-# WP_DIR="$INBOX/WP-${WP_NUM}"
-# WP_FILE="$WP_DIR/WP-${WP_NUM}.md"
-# mkdir -p "$WP_DIR"
-WP_DIR="$INBOX"
-WP_FILE="$INBOX/WP-${WP_NUM}-${SLUG}.md"
+# Slug is dropped from the filename (lives in title: frontmatter).
+WP_DIR="$INBOX/WP-${WP_NUM}"
+WP_FILE="$WP_DIR/WP-${WP_NUM}.md"
+mkdir -p "$WP_DIR"
 
 echo "🚀 Создаю WP-${WP_NUM}: $TITLE"
-echo "   Файл: inbox/WP-${WP_NUM}-${SLUG}.md"
+echo "   Папка: inbox/WP-${WP_NUM}/WP-${WP_NUM}.md"
 echo "   Бюджет: $BUDGET | Приоритет: $PRIORITY"
 
 # --- Сформировать строки таблицы связок ---
@@ -149,7 +143,7 @@ fi
 
 # --- Шаг 1: context file ---
 echo ""
-echo "1/6 context file..."
+echo "1/5 context file..."
 
 cat > "$WP_FILE" <<WPEOF
 ---
@@ -203,31 +197,8 @@ WPEOF
 
 echo "   ✅ $WP_FILE"
 
-# --- Шаг 2: archive stub ---
-# --- FORK-LOCAL (WP-65, 19.07.2026): шаг отключён по решению пилота от 04.07.2026
-# (memory/feedback-wp-new-no-archive-stub.md, status: active): файл РП живёт в inbox,
-# в archive/wp-contexts/ переезжает при ЗАКРЫТИИ. Болванка при создании — ошибка
-# документации поставщика, которую вендор реализовал в коде (a007d15).
-# Возврат к вендорскому поведению: раскомментировать блок ниже.
-echo "2/6 archive stub... пропущен (fork-local: болванка создаётся при закрытии, не при создании)"
-ARCHIVE_DIR="$STRATEGY/archive/wp-contexts"
-ARCHIVE_STUB="$ARCHIVE_DIR/WP-${WP_NUM}-${SLUG}.md"
-# cat > "$ARCHIVE_STUB" <<ARCHEOF
-# ---
-# wp: ${WP_NUM}
-# title: "${TITLE}"
-# created: ${TODAY}
-# status: pending
-# ---
-#
-# # WP-${WP_NUM}: ${TITLE} — §Закрытие
-#
-# *(заполняется при закрытии РП)*
-# ARCHEOF
-# echo "   ✅ $ARCHIVE_STUB"
-
-# --- Шаг 3: WP-REGISTRY.md ---
-echo "3/6 WP-REGISTRY.md..."
+# --- Шаг 2: WP-REGISTRY.md ---
+echo "2/5 WP-REGISTRY.md..."
 
 if ! python3 - "$REGISTRY" "$WP_NUM" "$PRIORITY" "$TITLE" "$REPO" "$BUDGET" "$GOV_REPO" <<'PYEOF'
 import sys
@@ -249,44 +220,53 @@ if insert_at is None:
     print("❌ Не найден заголовок таблицы REGISTRY", file=sys.stderr)
     sys.exit(1)
 
-# Схема-гард (issue #263): create-wp.sh пишет 6-колоночную строку
-# (# | P | Название | Ст | Репо | Бюджет). Если заголовок REGISTRY этой репо
-# ещё не приведён к актуальной схеме (например, старый формат
-# | # | Название | Статус | Активация |) — молча вставленная 6-колоночная
-# строка ломает таблицу. Лучше остановиться с понятной подсказкой, чем
-# незаметно испортить реестр.
-EXPECTED_COLS = 6
+# Схема-гард (issue #263, расширено issue #276): раньше писатель требовал ровно
+# 6 колонок в заголовке — REGISTRY с легитимно другим числом/порядком колонок
+# (та же семантика, доп. колонка сверху) блокировался целиком, хотя читатель
+# (check-wp-format.py::find_column_indices) уже толерантен к такой вариации.
+# Вместо счёта колонок — строим {имя: индекс} по фактическому заголовку и
+# проверяем наличие 6 канонических имён, не их порядок/количество.
 header_cols = [c.strip() for c in header_line.strip().strip("|").split("|")]
-if len(header_cols) != EXPECTED_COLS:
+CANONICAL_NAMES = ["#", "P", "Название", "Ст", "Репо", "Бюджет"]
+col_index = {name: i for i, name in enumerate(header_cols)}
+missing_names = [name for name in CANONICAL_NAMES if name not in col_index]
+if missing_names:
     print(
-        "❌ WP-REGISTRY.md использует нестандартную схему таблицы: {} колонок вместо {}.".format(
-            len(header_cols), EXPECTED_COLS
+        "❌ WP-REGISTRY.md: заголовок таблицы не содержит обязательных колонок {}.".format(
+            missing_names
         ),
         file=sys.stderr,
     )
     print("   Заголовок: {}".format(header_line.strip()), file=sys.stderr)
     print(
-        "   create-wp.sh пишет строки формата | # | P | Название | Ст | Репо | Бюджет | —",
+        "   create-wp.sh требует колонки # | P | Название | Ст | Репо | Бюджет —",
         file=sys.stderr,
     )
     print(
-        "   вставка в таблицу другой формы испортит её вместо добавления строки.",
+        "   без них не знает, куда писать новую строку.",
         file=sys.stderr,
     )
     print(
-        "   Приведите заголовок и существующие строки REGISTRY к актуальной 6-колоночной",
+        "   Приведите заголовок REGISTRY к схеме с этими 6 колонками (порядок и",
         file=sys.stderr,
     )
-    print("   схеме вручную, затем повторите создание РП.", file=sys.stderr)
+    print("   доп. колонки — свободные), затем повторите создание РП.", file=sys.stderr)
     sys.exit(1)
 
-# FORK-LOCAL (WP-65, 19.07.2026): inbox плоский, папочного пути нет → колонка «Репо»
-# держит имя репозитория, а не путь к папке РП. Номер пишем как WP-N — так записаны
-# все существующие 65 строк реестра; вендорский голый «N» дал бы разнобой в колонке.
-repo_cell = repo if repo else gov_repo
-new_row = "| WP-{} | {} | **{}** | ⏳ | {} | {} |\n".format(
-    wp_num, priority, title, repo_cell, budget
-)
+repo_cell = repo if repo else "{}/inbox/WP-{}/".format(gov_repo, wp_num)
+values_by_name = {
+    "#": wp_num,
+    "P": priority,
+    "Название": "**{}**".format(title),
+    "Ст": "⏳",
+    "Репо": repo_cell,
+    "Бюджет": budget,
+}
+row_cells = ["—"] * len(header_cols)
+for name, idx in col_index.items():
+    if name in values_by_name:
+        row_cells[idx] = values_by_name[name]
+new_row = "| " + " | ".join(row_cells) + " |\n"
 lines.insert(insert_at, new_row)
 
 with open(registry_path, "w", encoding="utf-8") as f:
@@ -309,7 +289,7 @@ if ! grep -qE "\| \*?\*?(WP-)?${WP_NUM}\*?\*? \|" "$REGISTRY"; then
 fi
 
 # --- Шаг 3: WeekPlan ---
-echo "4/6 WeekPlan..."
+echo "3/5 WeekPlan..."
 
 WEEKPLAN=$(find "$STRATEGY/current" -maxdepth 1 -name "WeekPlan W*.md" 2>/dev/null | sort -r | head -1)
 
@@ -347,8 +327,8 @@ else
   echo "   ⚠️  WeekPlan не найден в current/ — добавить вручную" >&2
 fi
 
-# --- Шаг 5: Strategy.md (только если --result задан и бюджет ≥3h) ---
-echo "5/6 Strategy.md..."
+# --- Шаг 4: Strategy.md (только если --result задан и бюджет ≥3h) ---
+echo "4/5 Strategy.md..."
 
 BUDGET_H=$(echo "$BUDGET" | sed 's/[^0-9]//g')
 if [[ -n "$RESULT" && "${BUDGET_H:-0}" -ge 3 ]]; then
@@ -394,8 +374,8 @@ else
   echo "   ℹ️  РП <3h — маппинг в Strategy.md не требуется"
 fi
 
-# --- Шаг 6: active-wp.md ---
-echo "6/6 active-wp.md..."
+# --- Шаг 5: active-wp.md ---
+echo "5/5 active-wp.md..."
 
 if [[ -f "$STRATEGY/scripts/build-active-wp.py" ]]; then
   python3 "$STRATEGY/scripts/build-active-wp.py" \
@@ -420,7 +400,6 @@ fi
 
 echo ""
 echo "✅ WP-${WP_NUM} создан: $TITLE"
-echo "   context: inbox/WP-${WP_NUM}-${SLUG}.md"
-# archive stub отключён (fork-local WP-65)
+echo "   context: inbox/WP-${WP_NUM}/WP-${WP_NUM}.md"
 echo "   Следующий шаг: заполнить «Проблема», «Артефакт», «Фазы» в context file"
 echo "   Не забыть: Linear issue"
