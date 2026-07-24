@@ -227,9 +227,32 @@ if insert_at is None:
 # Вместо счёта колонок — строим {имя: индекс} по фактическому заголовку и
 # проверяем наличие 6 канонических имён, не их порядок/количество.
 header_cols = [c.strip() for c in header_line.strip().strip("|").split("|")]
-CANONICAL_NAMES = ["#", "P", "Название", "Ст", "Репо", "Бюджет"]
 col_index = {name: i for i, name in enumerate(header_cols)}
-missing_names = [name for name in CANONICAL_NAMES if name not in col_index]
+
+# issue #297 (fork patch): each required column accepts either the short
+# canonical name or its full Russian alias, so a Russian-language registry
+# (Приоритет / Статус) is not rejected. Both header and value placement
+# resolve through the same alias groups. Re-verify before the next vendor
+# update — this lives in the fork and update.sh will overwrite it.
+repo_cell = repo if repo else "{}/inbox/WP-{}/".format(gov_repo, wp_num)
+REQUIRED_COLS = [
+    (["#"], wp_num),
+    (["P", "Приоритет"], priority),
+    (["Название"], "**{}**".format(title)),
+    (["Ст", "Статус"], "⏳"),
+    (["Репо"], repo_cell),
+    (["Бюджет"], budget),
+]
+
+missing_names = []
+resolved = []  # (column_index, value) for columns actually present
+for aliases, value in REQUIRED_COLS:
+    idx = next((col_index[a] for a in aliases if a in col_index), None)
+    if idx is None:
+        missing_names.append("/".join(aliases))
+    else:
+        resolved.append((idx, value))
+
 if missing_names:
     print(
         "❌ WP-REGISTRY.md: заголовок таблицы не содержит обязательных колонок {}.".format(
@@ -239,7 +262,7 @@ if missing_names:
     )
     print("   Заголовок: {}".format(header_line.strip()), file=sys.stderr)
     print(
-        "   create-wp.sh требует колонки # | P | Название | Ст | Репо | Бюджет —",
+        "   create-wp.sh требует колонки # | P|Приоритет | Название | Ст|Статус | Репо | Бюджет —",
         file=sys.stderr,
     )
     print(
@@ -253,19 +276,9 @@ if missing_names:
     print("   доп. колонки — свободные), затем повторите создание РП.", file=sys.stderr)
     sys.exit(1)
 
-repo_cell = repo if repo else "{}/inbox/WP-{}/".format(gov_repo, wp_num)
-values_by_name = {
-    "#": wp_num,
-    "P": priority,
-    "Название": "**{}**".format(title),
-    "Ст": "⏳",
-    "Репо": repo_cell,
-    "Бюджет": budget,
-}
 row_cells = ["—"] * len(header_cols)
-for name, idx in col_index.items():
-    if name in values_by_name:
-        row_cells[idx] = values_by_name[name]
+for idx, value in resolved:
+    row_cells[idx] = value
 new_row = "| " + " | ".join(row_cells) + " |\n"
 lines.insert(insert_at, new_row)
 
