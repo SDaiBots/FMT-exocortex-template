@@ -311,30 +311,59 @@ if [[ -n "$WEEKPLAN" ]]; then
 import sys, re
 weekplan_path, wp_num, title, priority, budget, gov_repo = sys.argv[1:7]
 
-# Маппинг приоритета → светофор
+# priority → traffic-light flag for the 🚦 column
 flag_map = {"P1": "🔴", "P2": "🟡", "P3": "🟢", "P4": "⚪", "P5": "⚪"}
 flag = flag_map.get(priority, "⚪")
-
-with open(weekplan_path, "r", encoding="utf-8") as f:
-    content = f.read()
-
-# Убрать часы из budget для поля h
 h_val = re.sub(r"[^0-9\-]", "", budget) or "?"
 
-new_row = "| {} | {} | **{}** — [описание] | {} | pending | W{} | {} |\n".format(
-    flag, wp_num, title, h_val,
-    re.search(r"W(\d+)", weekplan_path).group(1) if re.search(r"W(\d+)", weekplan_path) else "?",
-    gov_repo + "/inbox"
-)
+with open(weekplan_path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
 
-anchor = next((a for a in ["**Бюджет недели:**", "**Бюджет итого:**"] if a in content), None)
-if anchor:
-    content = content.replace(anchor, new_row + anchor, 1)
-    with open(weekplan_path, "w", encoding="utf-8") as f:
-        f.write(content)
-    print("   ✅ WeekPlan: строка WP-{} добавлена".format(wp_num))
+# issue #297 (fork patch): our WeekPlan is collapsible with the budget line
+# ABOVE the WP table, so the vendor's "insert before budget anchor" dropped the
+# row outside any table. Instead find the first real WP table (a header row with
+# a "РП"/"Название" column followed by a |---| separator) and insert right after
+# the separator. Cells are placed by column name with aliases, tolerant of our
+# schema (🚦 | # | РП | h | Источник | Статус | Ближайшее действие). Re-verify
+# before the next vendor update — update.sh will overwrite this.
+def cells(row):
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+repo_cell = "{}/inbox/WP-{}/".format(gov_repo, wp_num)
+value_for = [
+    (["🚦"], flag),
+    (["#"], "WP-" + wp_num),
+    (["рп", "название"], "**{}** — [описание]".format(title)),
+    (["h", "бюджет"], h_val),
+    (["источник"], "—"),
+    (["статус", "ст"], "pending"),
+    (["ближайшее действие", "результат"], repo_cell),
+]
+
+insert_at = None
+header_cols = None
+for i in range(len(lines) - 1):
+    row, sep = lines[i].strip(), lines[i + 1].strip()
+    if row.startswith("|") and sep.startswith("|") and set(sep) <= set("|-: "):
+        low = [c.lower() for c in cells(lines[i])]
+        if "рп" in low or "название" in low:
+            header_cols = cells(lines[i])
+            insert_at = i + 2
+            break
+
+if insert_at is None:
+    print("   ⚠️  WeekPlan: таблица РП не найдена — добавить строку вручную", file=sys.stderr)
 else:
-    print("   ⚠️  WeekPlan: якорь 'Бюджет недели' / 'Бюджет итого' не найден — добавить вручную", file=sys.stderr)
+    col_index = {name.lower(): idx for idx, name in enumerate(header_cols)}
+    row_cells = ["—"] * len(header_cols)
+    for aliases, value in value_for:
+        idx = next((col_index[a] for a in aliases if a in col_index), None)
+        if idx is not None:
+            row_cells[idx] = value
+    lines.insert(insert_at, "| " + " | ".join(row_cells) + " |\n")
+    with open(weekplan_path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    print("   ✅ WeekPlan: строка WP-{} добавлена в таблицу РП".format(wp_num))
 PYEOF
 else
   echo "   ⚠️  WeekPlan не найден в current/ — добавить вручную" >&2
